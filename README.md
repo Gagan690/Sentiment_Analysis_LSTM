@@ -1,102 +1,174 @@
-# Sentiment Analysis with CNN
+# Sentiment Analysis with LSTM
 
-A PyTorch-based sentiment analysis project using Convolutional Neural Networks (CNN) for text classification.
+A PyTorch-based sentiment analysis project using Long Short-Term Memory (LSTM) networks for text classification. The model classifies text into three sentiment categories: Negative, Neutral, and Positive.
+
+## Project Overview
+
+This project implements a complete end-to-end sentiment analysis pipeline, from data preprocessing to model training and inference. The model uses bidirectional LSTM layers for capturing context in both directions, achieving robust sentiment classification performance.
 
 ## Project Structure
 
 ```
-Spamming/
-├── dataset/
-│   ├── sentiment_data.csv          # Raw dataset
-│   ├── cleaned_sentiment_data.csv  # Preprocessed dataset
-│   └── label_mapping.json          # Label to index mapping
-├── PreProcessing.ipynb             # Data cleaning and preprocessing notebook
-├── SentimentAnalysisCNN.py         # CNN model architecture
-├── Training_loop.py                # Training and testing functions
-├── data.py                         # Vocabulary and sample data
-└── README.md                       # This file
+Sentiment_LSTM/
+├── PreProcessing.ipynb              # Data cleaning and preprocessing notebook
+├── SentimentAnaylsis_LSTM.ipynb     # Main training notebook with model architecture
+├── Sentiment_LSTM.py                # Standalone inference script
+├── requirements.txt                 # Project dependencies
+├── vocab.pkl                        # Saved vocabulary dictionary
+├── sentiment_model.pkl              # Trained model weights
+└── README.md                        # This file
 ```
+
+## Features
+
+- **Multiple RNN Architectures**: Supports RNN, LSTM, and GRU models
+- **Bidirectional Processing**: Captures context from both directions for better understanding
+- **Text Preprocessing**: Comprehensive cleaning including URL removal, mention filtering, and tokenization
+- **Vocabulary Management**: Custom vocabulary with special tokens (`<pad>`, `<unk>`)
+- **GPU Support**: Automatic CUDA detection for accelerated training
+- **Standalone Inference**: Easy-to-use prediction script for new text samples
 
 ## Requirements
 
 Install the required packages:
 
 ```bash
+pip install -r requirements.txt
+```
+
+Or install manually:
+
+```bash
 pip install torch pandas numpy matplotlib
 ```
 
+## Model Architecture
+
+The `Text_Classifier` model includes:
+- **Embedding Layer**: Converts word indices to dense vectors
+- **RNN Layer**: LSTM/GRU/RNN with configurable layers and bidirectionality
+- **Fully Connected Layer**: Maps hidden states to sentiment classes
+
+### Hyperparameters
+- Embedding Dimension: 64
+- Hidden Dimension: 128
+- Number of Layers: 3
+- Bidirectional: True
+- Sequence Length: 100
+- Number of Classes: 3 (Negative, Neutral, Positive)
+
 ## Workflow
 
-### 1. Data Preprocessing (PreProcessing.ipynb)
+### 1. Data Preprocessing ([PreProcessing.ipynb](PreProcessing.ipynb))
 
-The preprocessing notebook contains the complete data pipeline:
+Prepares the raw data for training:
 
-#### Step 1: Load Raw Data
-- Reads `sentiment_data.csv` from the dataset folder
-- Displays dataset shape and checks for missing values
+- **Load Dataset**: Reads the CSV file containing text and sentiment labels
+- **Data Cleaning**: 
+  - Removes missing values and unnecessary columns
+  - Converts text to lowercase
+  - Removes URLs, mentions (@username), and hashtags
+  - Tokenizes text into word lists
+- **Vocabulary Building**:
+  - Creates vocabulary from all unique words
+  - Adds special tokens: `<pad>` (index 0) and `<unk>` (index 1)
+- **Save Artifacts**: Exports vocabulary to `vocab.pkl` for inference
 
-#### Step 2: Data Cleaning
-- Removes rows with missing values
-- Drops unnecessary columns (e.g., 'Unnamed: 0')
-- Saves cleaned data to `cleaned_sentiment_data.csv`
+### 2. Model Training ([SentimentAnaylsis_LSTM.ipynb](SentimentAnaylsis_LSTM.ipynb))
 
-#### Step 3: Text Preprocessing
-- Converts text to lowercase
-- Removes URLs, mentions (@username), and hashtags
-- Tokenizes text into word lists
-- Applies cleaning to the 'Comment' column
+Complete training pipeline:
 
-#### Step 4: Vocabulary Building
-- Builds vocabulary from all unique words in the dataset
-- Adds special tokens: `<pad>` (index 0) and `<unk>` (index 1)
-- Converts text to numerical indices using the vocabulary
-- Creates deterministic label mapping (sorted by unique sentiment values)
-- Saves label mapping to `label_mapping.json` for reproducibility
+- **Data Loading**: Loads preprocessed data and vocabulary
+- **Model Initialization**: Creates the LSTM classifier with specified architecture
+- **Training Loop**:
+  - Batch processing with DataLoader
+  - CrossEntropyLoss for multi-class classification
+  - Adam optimizer with learning rate scheduling
+  - Gradient clipping for stable training
+- **Evaluation**: Tests model performance on validation set
+- **Model Saving**: Exports trained weights to `sentiment_model.pkl`
 
-#### Step 5: Train/Test Split
-- Splits dataset into 80% training and 20% testing
-- Stores in `train_df` and `test_df` DataFrames
+### 3. Inference ([Sentiment_LSTM.py](Sentiment_LSTM.py))
 
-**Run all cells in order to complete the preprocessing pipeline.**
-
-### 2. Model Architecture (SentimentAnalysisCNN.py)
-
-The `SentimentAnalysisCNN` class implements a CNN for text classification with:
-- Embedding layer for word representations
-- Convolutional layers for feature extraction
-- Fully connected layers for classification
-
-### 3. Training (Training_loop.py)
-
-Use the training script to train and evaluate the model:
+Run predictions on new text:
 
 ```python
-from Training_loop import TrainingLoop, testingLoop
-from SentimentAnalysisCNN import SentimentAnalysisCNN
-from data import vocab_size, embed_dim, book_sample
-import torch.nn as nn
-import torch.optim as optim
-
-# Initialize model
-model = SentimentAnalysisCNN(vocab_size, embed_dim)
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-# Train the model
-TrainingLoop(model, book_sample, criterion, optimizer, epochs=5)
-
-# Test the model
-testingLoop(model, book_sample)
+python Sentiment_LSTM.py
 ```
 
-## Configuration (data.py)
+The script:
+1. Loads the saved vocabulary and model weights
+2. Preprocesses input text using the same cleaning pipeline
+3. Converts text to indices and pads/truncates to sequence length
+4. Runs inference and returns sentiment predictions
 
-The `data.py` module contains:
-- **vocab**: List of words in vocabulary
-- **word_to_idx**: Word to index mapping dictionary
-- **vocab_size**: Size of vocabulary
-- **embed_dim**: Embedding dimension (default: 10)
-- **book_sample**: Sample training/testing data
+Example output:
+```
+--- Predictions ---
+Sentence: I absolutely love this product, it is amazing!
+Prediction: 2 (Positive)
+--------------------
+Sentence: The service was terrible and the food was cold.
+Prediction: 0 (Negative)
+--------------------
+```
+
+## Usage
+
+### Training a New Model
+
+1. Prepare your dataset with two columns: `Comment` (text) and `Sentiment` (label)
+2. Run [PreProcessing.ipynb](PreProcessing.ipynb) to clean data and build vocabulary
+3. Open [SentimentAnaylsis_LSTM.ipynb](SentimentAnaylsis_LSTM.ipynb) and execute all cells
+4. Monitor training progress and validation metrics
+5. Model weights will be saved as `sentiment_model.pkl`
+
+### Making Predictions
+
+```python
+from Sentiment_LSTM import predict_sentence, Text_Classifier
+import torch
+import pickle
+
+# Load vocabulary
+with open('vocab.pkl', 'rb') as f:
+    vocab = pickle.load(f)
+
+# Initialize and load model
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = Text_Classifier(len(vocab), 64, 128, 3, 3, "LSTM", True).to(device)
+model.load_state_dict(torch.load('sentiment_model.pkl', map_location=device))
+
+# Predict sentiment
+text = "This is an excellent product!"
+prediction = predict_sentence(text, model, vocab, device)
+print(f"Sentiment: {prediction}")  # 0=Negative, 1=Neutral, 2=Positive
+```
+
+## Text Preprocessing Pipeline
+
+The `clean_text()` function performs:
+1. Convert to lowercase
+2. Remove URLs (http://, https://, www.)
+3. Remove mentions (@username)
+4. Remove hashtags (#)
+5. Split into word tokens
+
+## Model Configurations
+
+You can experiment with different architectures by modifying:
+
+```python
+model = Text_Classifier(
+    vocab_size=len(vocab),
+    embed_dim=64,           # Embedding dimension
+    hidden_dim=128,         # LSTM hidden size
+    num_layers=3,           # Number of LSTM layers
+    number_classes=3,       # Sentiment classes
+    model_type="LSTM",      # Options: "LSTM", "GRU", "RNNs"
+    bidirectional=True      # Use bidirectional processing
+)
+```
 
 Modify this file to use different vocabularies or sample datasets.
 
